@@ -28,8 +28,11 @@ class Server {
 
   int listenSock;
   struct sockaddr_in srvAddr;
+  struct sockaddr_in cliAddr;
 
-  int setNonBlocking(int sockfd);
+
+  int epfd;
+  int socklen;
 };
 } // server
 } // lib

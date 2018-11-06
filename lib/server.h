@@ -1,3 +1,6 @@
+#ifndef LIB_SERVER
+#define LIB_SERVER
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -9,22 +12,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef LIB_SERVER
-#define LIB_SERVER
-
 namespace lib {
 namespace server {
 
 class Server {
  public:
 
-  Server(int maxConn, ) {
-  }
+  Server(int port, int maxConn): port(port), maxConn(maxConn) {}
 
-  void start() {
-  }
+  void start();
 
  private:
+  int port;
+  int maxConn;
+
   int listenSock;
   struct sockaddr_in srvAddr;
 

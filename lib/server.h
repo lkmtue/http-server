@@ -15,6 +15,9 @@
 namespace lib {
 namespace server {
 
+const int READ_BUF_SIZE = 16;
+const int EPOLL_WAIT_MAX_EVENTS = 16;
+
 class Server {
  public:
 
@@ -25,14 +28,6 @@ class Server {
  private:
   int port;
   int maxConn;
-
-  int listenSock;
-  struct sockaddr_in srvAddr;
-  struct sockaddr_in cliAddr;
-
-
-  int epfd;
-  int socklen;
 };
 } // server
 } // lib

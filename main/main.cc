@@ -1,5 +1,8 @@
 #include <cstdio>
 
+#include "lib/server.h"
+
 int main() {
-  printf("Hello workd!\n");
+  lib::server::Server server(8080, 16);
+  server.start();
 }

@@ -3,17 +3,15 @@
 namespace lib {
 namespace server {
 
-using std::shared_ptr;
-
-void EventQueue::push(shared_ptr<Event> e) {
+void EventQueue::push(int eventType, const std::shared_ptr<void> &eventInfo) {
   mtx.lock();
-  queue.push(e);
+  queue.push(std::shared_ptr<Event>(new Event(eventType, eventInfo)));
   mtx.unlock();
 }
 
-shared_ptr<Event> EventQueue::pop() {
+std::shared_ptr<Event> EventQueue::pop() {
   mtx.lock();
-  shared_ptr<Event> res = queue.front();
+  std::shared_ptr<Event> res = std::move(queue.front());
   queue.pop();
   mtx.unlock();
   return res;

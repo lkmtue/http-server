@@ -10,12 +10,10 @@ namespace server {
 
 class Event {
  public:
-  Event(int eventType, std::shared_ptr<void *>eventInfo):
-   eventType(eventType), eventInfo(eventInfo) {}
+  Event(int eventType, const std::shared_ptr<void> &eventInfo): eventType(eventType), eventInfo(eventInfo) {}
 
- private:
   int eventType;
-  std::shared_ptr<void *> eventInfo;
+  const std::shared_ptr<void> eventInfo;
 };
 
 class EventQueue {
@@ -23,7 +21,7 @@ class EventQueue {
 
   EventQueue() {}
 
-  void push(std::shared_ptr<Event> e);
+  void push(int eventType, const std::shared_ptr<void> &eventInfo);
 
   std::shared_ptr<Event> pop();
 
@@ -37,4 +35,3 @@ class EventQueue {
 } // lib
 
 #endif
-

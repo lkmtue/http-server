@@ -4,4 +4,7 @@ cc_binary(
   deps = [
     "//lib:server"
   ],
+  linkopts = [
+    "-pthread"
+  ],
 )

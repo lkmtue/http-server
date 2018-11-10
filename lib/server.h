@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "lib/event-queue.h"
+
 namespace lib {
 namespace server {
 
@@ -22,12 +24,13 @@ const int EPOLL_WAIT_MAX_EVENTS = 16;
 class Server {
  public:
 
-  Server(int port): port(port) {}
+  Server(int port, EventQueue *eventQueue): port(port), eventQueue(eventQueue) {}
 
   void start();
 
  private:
   int port;
+  EventQueue *eventQueue;
 };
 } // server
 } // lib

@@ -10,8 +10,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 #include "lib/event-queue.h"
+#include "lib/event-types.h"
 
 namespace lib {
 namespace server {
@@ -50,31 +52,43 @@ void reuseSocket(int serverSocket) {
   }
 }
 
-inline void handleNewConnection(int serverSocket, int epfd) {
+inline void handleNewConnection(int serverSocket, int epfd, EventQueue *eventQueue) {
   static struct sockaddr_in cliAddr;
   static socklen_t socklen = sizeof(cliAddr);
 
   int connSock = accept(serverSocket, (struct sockaddr *)&cliAddr, &socklen);
-
   setNonBlocking(connSock);
-
   epollCtlAdd(epfd, connSock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
-  printf("\n[+] new connection\n");
 
+  eventQueue->push(NEW_CONNECTION_EVENT, std::shared_ptr<void>(new int(epfd)));
 }
 
-inline void handleReadEvent(int eventFd) {
+inline void handleReadEvent(int eventFd, EventQueue *eventQueue) {
   static char buf[READ_BUF_SIZE];
+
+  std::string *s = new std::string();
+
   while (1) {
     bzero(buf, sizeof(buf));
     int n = read(eventFd, buf, sizeof(buf));
     if (n <= 0) {
       break;
     } else {
-      printf("%s", buf);
-      fflush(stdout);
+      for (int i = 0; i < n; i++) {
+        (*s) += buf[i];
+      }
     }
   }
+
+  eventQueue->push(
+    READ_EVENT,
+     std::shared_ptr<void>(
+      new ReadEvent(
+        eventFd,
+        std::shared_ptr<std::string>(s)
+      )
+    )
+  );
 }
 }
 
@@ -101,9 +115,9 @@ void Server::start() {
     int nfds = epoll_wait(epfd, events, EPOLL_WAIT_MAX_EVENTS, -1);
     for (int i = 0; i < nfds; i++) {
       if (events[i].data.fd == serverSocket) {
-        handleNewConnection(serverSocket, epfd);
+        handleNewConnection(serverSocket, epfd, eventQueue);
       } else if (events[i].events & EPOLLIN) {
-        handleReadEvent(events[i].data.fd);
+        handleReadEvent(events[i].data.fd, eventQueue);
       } else {
         printf("Unexpected\n");
       }
@@ -111,6 +125,7 @@ void Server::start() {
         printf("\n[+] connection closed\n");
         epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
         close(events[i].data.fd);
+        eventQueue->push(CLOSE_EVENT, std::shared_ptr<void>(new int(events[i].data.fd)));
       }
     }
   }

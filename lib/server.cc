@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "lib/event-queue.h"
+
 namespace lib {
 namespace server {
 namespace {
@@ -39,23 +41,26 @@ int setNonBlocking(int sockfd) {
   return 0;
 }
 
-void reuseSocket(int listenSock) {
+void reuseSocket(int serverSocket) {
   int enable = 1;
-  if (setsockopt(listenSock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+  if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
     perror("setsockopt(SO_REUSEADDR) failed");
     exit(1);
+
   }
 }
 
-inline void handleNewConnection(int listenSock, int epfd) {
+inline void handleNewConnection(int serverSocket, int epfd) {
   static struct sockaddr_in cliAddr;
   static socklen_t socklen = sizeof(cliAddr);
 
-  int connSock = accept(listenSock, (struct sockaddr *)&cliAddr, &socklen);
+  int connSock = accept(serverSocket, (struct sockaddr *)&cliAddr, &socklen);
 
   setNonBlocking(connSock);
 
   epollCtlAdd(epfd, connSock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
+  printf("\n[+] new connection\n");
+
 }
 
 inline void handleReadEvent(int eventFd) {
@@ -66,8 +71,8 @@ inline void handleReadEvent(int eventFd) {
     if (n <= 0) {
       break;
     } else {
-      printf("[+] data: %s\n", buf);
-      write(eventFd, buf, strlen(buf));
+      printf("%s", buf);
+      fflush(stdout);
     }
   }
 }
@@ -76,34 +81,34 @@ inline void handleReadEvent(int eventFd) {
 void Server::start() {
   struct sockaddr_in srvAddr;
 
-  int listenSock = socket(AF_INET, SOCK_STREAM, 0);
+  int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
   setSockaddr(&srvAddr, port);
 
-  reuseSocket(listenSock);
+  reuseSocket(serverSocket);
 
-  bind(listenSock, (struct sockaddr *)&srvAddr, sizeof(srvAddr));
-  setNonBlocking(listenSock);
+  bind(serverSocket, (struct sockaddr *)&srvAddr, sizeof(srvAddr));
+  setNonBlocking(serverSocket);
 
-  listen(listenSock, maxConn);
+  listen(serverSocket, MAX_CONCURRENT_CONNECTION);
 
   int epfd = epoll_create(1);
 
-  epollCtlAdd(epfd, listenSock, EPOLLIN | EPOLLOUT | EPOLLET);
+  epollCtlAdd(epfd, serverSocket, EPOLLIN | EPOLLOUT | EPOLLET);
 
   epoll_event events[EPOLL_WAIT_MAX_EVENTS];
 
   while (1) {
     int nfds = epoll_wait(epfd, events, EPOLL_WAIT_MAX_EVENTS, -1);
     for (int i = 0; i < nfds; i++) {
-      if (events[i].data.fd == listenSock) {
-        handleNewConnection(listenSock, epfd);
+      if (events[i].data.fd == serverSocket) {
+        handleNewConnection(serverSocket, epfd);
       } else if (events[i].events & EPOLLIN) {
         handleReadEvent(events[i].data.fd);
       } else {
         printf("Unexpected\n");
       }
       if (events[i].events & (EPOLLRDHUP | EPOLLHUP)) {
-        printf("[+] connection closed\n");
+        printf("\n[+] connection closed\n");
         epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
         close(events[i].data.fd);
       }

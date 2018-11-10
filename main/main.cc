@@ -3,6 +3,6 @@
 #include "lib/server.h"
 
 int main() {
-  lib::server::Server server(8080, 16);
+  lib::server::Server server(8080);
   server.start();
 }

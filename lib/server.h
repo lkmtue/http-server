@@ -15,19 +15,19 @@
 namespace lib {
 namespace server {
 
+const int MAX_CONCURRENT_CONNECTION = 16;
 const int READ_BUF_SIZE = 16;
 const int EPOLL_WAIT_MAX_EVENTS = 16;
 
 class Server {
  public:
 
-  Server(int port, int maxConn): port(port), maxConn(maxConn) {}
+  Server(int port): port(port) {}
 
   void start();
 
  private:
   int port;
-  int maxConn;
 };
 } // server
 } // lib

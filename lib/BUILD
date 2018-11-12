@@ -3,7 +3,6 @@ cc_library(
   srcs = ["server.cc"],
   hdrs = ["server.h"],
   deps = [
-    "//lib:task-queue",
     "//lib:connection-handler",
   ],
   visibility = ["//main:__pkg__"],
@@ -15,12 +14,6 @@ cc_library(
   deps = [
     "//lib:http",
   ],
-)
-
-cc_library(
-  name = "task-queue",
-  hdrs = ["task-queue.h"],
-  visibility = ["//main:__pkg__"],
 )
 
 cc_library(

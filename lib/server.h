@@ -14,7 +14,6 @@
 
 #include "lib/connection-handler.h"
 #include "lib/http.h"
-#include "lib/task-queue.h"
 
 namespace lib {
 namespace server {
@@ -29,9 +28,8 @@ class Server {
 
   Server(
     int port,
-    lib::task::TaskQueue *taskQueue,
     lib::http::HttpRequestHandler httpRequestHandler
-  ): port(port), taskQueue(taskQueue), httpRequestHandler(httpRequestHandler) {
+  ): port(port), httpRequestHandler(httpRequestHandler) {
     connectionHandler = new ConnectionHandler(httpRequestHandler);
   }
 
@@ -48,7 +46,6 @@ class Server {
   int epfd;
 
 
-  lib::task::TaskQueue *taskQueue;
   lib::server::ConnectionHandler *connectionHandler;
 
   lib::http::HttpRequestHandler httpRequestHandler;

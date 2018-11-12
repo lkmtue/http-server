@@ -85,10 +85,8 @@ void Server::epollWait() {
         epoll_ctl(epfd, EPOLL_CTL_DEL, eventFd, NULL);
         close(eventFd);
         connectionHandler->onClose(eventFd);
-        // taskQueue->push([this, eventFd]() { this->connectionHandler->onClose(eventFd); });
       }
     }
-    // taskQueue->push([this]() { this->epollWait(); });
   }
 }
 
@@ -101,8 +99,6 @@ void Server::handleNewConnection() {
   epollCtlAdd(epfd, connSock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
 
   connectionHandler->onConnect(connSock);
-
-  // taskQueue->push([this, connSock]() { this->connectionHandler->onConnect(connSock); });
 }
 
 void Server::handleReadEvent(int eventFd) {
@@ -122,7 +118,6 @@ void Server::handleReadEvent(int eventFd) {
     }
   }
   connectionHandler->onRead(eventFd, s);
-  // taskQueue->push([this, eventFd, s] { this->connectionHandler->onRead(eventFd, s); });
 }
 } // server
 } // lib

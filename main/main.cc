@@ -1,13 +1,5 @@
 #include "lib/server.h"
-#include "lib/task-queue.h"
 #include "lib/http.h"
-
-void run(lib::task::TaskQueue *queue) {
-  while (1) {
-    auto task = queue->pop();
-    task();
-  }
-}
 
 lib::http::Response handleRequest(const lib::http::Request &request) {
   lib::http::Response response;
@@ -25,10 +17,6 @@ lib::http::Response handleRequest(const lib::http::Request &request) {
 }
 
 int main() {
-  auto queue = new lib::task::TaskQueue();
-
-  lib::server::Server server(8080, queue, handleRequest);
+  lib::server::Server server(8080, handleRequest);
   server.start();
-
-  run(queue);
 }

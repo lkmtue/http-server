@@ -1,48 +1,34 @@
-#include <cstdio>
-#include <memory>
-#include <thread>
-#include <iostream>
-
 #include "lib/server.h"
-#include "lib/event-queue.h"
-#include "lib/event-types.h"
+#include "lib/task-queue.h"
+#include "lib/http.h"
 
-void startServer(lib::server::EventQueue *eventQueue) {
-  lib::server::Server server(8080, eventQueue);
-  server.start();
-}
-
-void eventLoop(lib::server::EventQueue *eventQueue) {
+void run(lib::task::TaskQueue *queue) {
   while (1) {
-    if (!eventQueue->empty()) {
-      std::shared_ptr<lib::server::Event> event = eventQueue->pop();
-
-      switch (event->eventType) {
-        case NEW_CONNECTION_EVENT: {
-          auto fd = (int *)event->eventInfo.get();
-          std::cout << "[INFO] New connection: " << *fd << std::endl;
-          break;
-        }
-
-        case READ_EVENT: {
-          auto readEvent = (lib::server::ReadEvent *)event->eventInfo.get();
-          std::cout << "[INFO] Read: " << std::endl << *readEvent->data << std::endl;
-          break;
-        }
-
-        case CLOSE_EVENT:
-          printf("Closed\n");
-          break;
-
-        default:
-          break;
-      }
-    }
+    auto task = queue->pop();
+    task();
   }
 }
 
+lib::http::Response handleRequest(const lib::http::Request &request) {
+  lib::http::Response response;
+  response.code = 200;
+  response.message = "OK";
+  response.additionalHeaders.push_back({ "Content-Type", "text/html; charset=UTF-8" });
+  response.body += "<html>";
+  response.body += "<body>";
+  response.body += "<div>" + request.method + "</div>";
+  response.body += "<div>" + request.path + "</div>";
+  response.body += "<div>" + request.body + "</div>";
+  response.body += "</body>";
+  response.body += "</html>";
+  return response;
+}
+
 int main() {
-  lib::server::EventQueue *eventQueue = new lib::server::EventQueue();
-  std::thread server(startServer, eventQueue);
-  eventLoop(eventQueue);
+  auto queue = new lib::task::TaskQueue();
+
+  lib::server::Server server(8080, queue, handleRequest);
+  server.start();
+
+  run(queue);
 }

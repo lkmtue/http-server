@@ -12,9 +12,6 @@
 #include <stdlib.h>
 #include <iostream>
 
-#include "lib/event-queue.h"
-#include "lib/event-types.h"
-
 namespace lib {
 namespace server {
 namespace {
@@ -51,51 +48,12 @@ void reuseSocket(int serverSocket) {
 
   }
 }
-
-inline void handleNewConnection(int serverSocket, int epfd, EventQueue *eventQueue) {
-  static struct sockaddr_in cliAddr;
-  static socklen_t socklen = sizeof(cliAddr);
-
-  int connSock = accept(serverSocket, (struct sockaddr *)&cliAddr, &socklen);
-  setNonBlocking(connSock);
-  epollCtlAdd(epfd, connSock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
-
-  eventQueue->push(NEW_CONNECTION_EVENT, std::shared_ptr<void>(new int(epfd)));
-}
-
-inline void handleReadEvent(int eventFd, EventQueue *eventQueue) {
-  static char buf[READ_BUF_SIZE];
-
-  std::string *s = new std::string();
-
-  while (1) {
-    bzero(buf, sizeof(buf));
-    int n = read(eventFd, buf, sizeof(buf));
-    if (n <= 0) {
-      break;
-    } else {
-      for (int i = 0; i < n; i++) {
-        (*s) += buf[i];
-      }
-    }
-  }
-
-  eventQueue->push(
-    READ_EVENT,
-     std::shared_ptr<void>(
-      new ReadEvent(
-        eventFd,
-        std::shared_ptr<std::string>(s)
-      )
-    )
-  );
-}
 }
 
 void Server::start() {
   struct sockaddr_in srvAddr;
 
-  int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+  serverSocket = socket(AF_INET, SOCK_STREAM, 0);
   setSockaddr(&srvAddr, port);
 
   reuseSocket(serverSocket);
@@ -105,30 +63,66 @@ void Server::start() {
 
   listen(serverSocket, MAX_CONCURRENT_CONNECTION);
 
-  int epfd = epoll_create(1);
-
+  epfd = epoll_create(1);
   epollCtlAdd(epfd, serverSocket, EPOLLIN | EPOLLOUT | EPOLLET);
 
-  epoll_event events[EPOLL_WAIT_MAX_EVENTS];
+  epollWait();
+}
 
+void Server::epollWait() {
   while (1) {
-    int nfds = epoll_wait(epfd, events, EPOLL_WAIT_MAX_EVENTS, -1);
+    int nfds = epoll_wait(epfd, events, EPOLL_WAIT_MAX_EVENTS, EPOLL_WAIT_TIME_OUT);
     for (int i = 0; i < nfds; i++) {
-      if (events[i].data.fd == serverSocket) {
-        handleNewConnection(serverSocket, epfd, eventQueue);
+      int eventFd = events[i].data.fd;
+      if (eventFd == serverSocket) {
+        handleNewConnection();
       } else if (events[i].events & EPOLLIN) {
-        handleReadEvent(events[i].data.fd, eventQueue);
+        handleReadEvent(eventFd);
       } else {
         printf("Unexpected\n");
       }
       if (events[i].events & (EPOLLRDHUP | EPOLLHUP)) {
-        printf("\n[+] connection closed\n");
-        epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-        close(events[i].data.fd);
-        eventQueue->push(CLOSE_EVENT, std::shared_ptr<void>(new int(events[i].data.fd)));
+        epoll_ctl(epfd, EPOLL_CTL_DEL, eventFd, NULL);
+        close(eventFd);
+        connectionHandler->onClose(eventFd);
+        // taskQueue->push([this, eventFd]() { this->connectionHandler->onClose(eventFd); });
+      }
+    }
+    // taskQueue->push([this]() { this->epollWait(); });
+  }
+}
+
+void Server::handleNewConnection() {
+  static struct sockaddr_in cliAddr;
+  static socklen_t socklen = sizeof(cliAddr);
+
+  int connSock = accept(serverSocket, (struct sockaddr *)&cliAddr, &socklen);
+  setNonBlocking(connSock);
+  epollCtlAdd(epfd, connSock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
+
+  connectionHandler->onConnect(connSock);
+
+  // taskQueue->push([this, connSock]() { this->connectionHandler->onConnect(connSock); });
+}
+
+void Server::handleReadEvent(int eventFd) {
+  static char buf[READ_BUF_SIZE];
+
+  std::string s;
+
+  while (1) {
+    bzero(buf, sizeof(buf));
+    int n = read(eventFd, buf, sizeof(buf));
+    if (n <= 0) {
+      break;
+    } else {
+      for (int i = 0; i < n; i++) {
+        s += buf[i];
       }
     }
   }
+  connectionHandler->onRead(eventFd, s);
+  // taskQueue->push([this, eventFd, s] { this->connectionHandler->onRead(eventFd, s); });
 }
 } // server
 } // lib

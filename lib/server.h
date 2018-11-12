@@ -12,27 +12,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lib/event-queue.h"
+#include "lib/connection-handler.h"
+#include "lib/http.h"
+#include "lib/task-queue.h"
 
 namespace lib {
 namespace server {
 
-const int MAX_CONCURRENT_CONNECTION = 16;
-const int READ_BUF_SIZE = 16;
-const int EPOLL_WAIT_MAX_EVENTS = 16;
+const int MAX_CONCURRENT_CONNECTION = 1000;
+const int READ_BUF_SIZE = 1000;
+const int EPOLL_WAIT_MAX_EVENTS = 1000;
+const int EPOLL_WAIT_TIME_OUT = -1;
 
 class Server {
  public:
 
-  Server(int port, EventQueue *eventQueue): port(port), eventQueue(eventQueue) {}
+  Server(
+    int port,
+    lib::task::TaskQueue *taskQueue,
+    lib::http::HttpRequestHandler httpRequestHandler
+  ): port(port), taskQueue(taskQueue), httpRequestHandler(httpRequestHandler) {
+    connectionHandler = new ConnectionHandler(httpRequestHandler);
+  }
+
+  ~Server() {
+    delete connectionHandler;
+  }
 
   void start();
 
  private:
+
   int port;
-  EventQueue *eventQueue;
+  int serverSocket;
+  int epfd;
+
+
+  lib::task::TaskQueue *taskQueue;
+  lib::server::ConnectionHandler *connectionHandler;
+
+  lib::http::HttpRequestHandler httpRequestHandler;
+
+  epoll_event events[EPOLL_WAIT_MAX_EVENTS];
+
+  void epollWait();
+  void handleNewConnection();
+  void handleReadEvent(int eventFd);
 };
 } // server
 } // lib
-
 #endif

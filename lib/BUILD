@@ -3,19 +3,28 @@ cc_library(
   srcs = ["server.cc"],
   hdrs = ["server.h"],
   deps = [
-    "//lib:event-queue",
-    "//lib:event-types",
+    "//lib:task-queue",
+    "//lib:connection-handler",
   ],
   visibility = ["//main:__pkg__"],
 )
 
 cc_library(
-  name = "event-queue",
-  srcs = ["event-queue.cc"],
-  hdrs = ["event-queue.h"],
+  name = "connection-handler",
+  hdrs = ["connection-handler.h"],
+  deps = [
+    "//lib:http",
+  ],
 )
 
 cc_library(
-  name = "event-types",
-  hdrs = ["event-types.h"],
+  name = "task-queue",
+  hdrs = ["task-queue.h"],
+  visibility = ["//main:__pkg__"],
+)
+
+cc_library(
+  name = "http",
+  hdrs = ["http.h"],
+  visibility = ["//main:__pkg__"],
 )
